@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Building ILPE: Architecture, Distribution, and the Path to Open Standards</title>
+<link href="https://api.fontshare.com/v2/css?f[]=clash-grotesk@500,600,700&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --red:#F40E2A; --navy:#111827; --grey:#C2C3C4;
+  --crimson:#A91B1B; --amber:#F29727; --teal:#22A699; --sky:#4BAAC8; --yellow:#F2BE22;
+  --burgundy:#362828; --nearblack:#202024; --slate:#4C5760;
+  --warmwhite:#E6DEDD; --lightgrey:#E4E4E4; --offwhite:#EFEFEF;
+  --font-display:'Clash Grotesk',sans-serif;
+  --font-body:'Satoshi',sans-serif;
+  --font-mono:'Roboto Mono',monospace;
+  --max-width:860px; --sidebar:240px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--offwhite);color:var(--navy);font-family:var(--font-body);font-size:16px;line-height:1.7;-webkit-font-smoothing:antialiased}
+
+/* STATUS BANNER */
+.status-banner{background:rgba(242,151,39,.12);border-bottom:1px solid rgba(242,151,39,.3);padding:10px 24px;text-align:center;display:flex;align-items:center;justify-content:center;gap:12px}
+.status-banner-badge{font-family:var(--font-mono);font-size:10px;font-weight:500;color:var(--amber);background:rgba(242,151,39,.15);border:1px solid rgba(242,151,39,.3);padding:3px 10px;border-radius:4px;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+.status-banner p{font-family:var(--font-mono);font-size:11px;color:var(--slate);margin:0;letter-spacing:.04em}
+.status-banner a{color:var(--sky);border-bottom:1px solid rgba(75,170,200,.3);font-size:11px;font-family:var(--font-mono)}
+
+/* COVER */
+.cover{background:var(--navy);min-height:100vh;display:flex;flex-direction:column;justify-content:space-between;padding:64px 64px 48px;position:relative;overflow:hidden}
+.cover::before{content:'';position:absolute;top:-200px;right:-200px;width:600px;height:600px;background:radial-gradient(circle,rgba(244,14,42,.08) 0%,transparent 70%);pointer-events:none}
+.cover::after{content:'';position:absolute;bottom:-100px;left:-100px;width:400px;height:400px;background:radial-gradient(circle,rgba(34,166,153,.05) 0%,transparent 70%);pointer-events:none}
+.cover-logo{display:flex;align-items:center;gap:12px}
+.cover-body{max-width:720px;margin:auto 0;padding:64px 0}
+.cover-label{font-family:var(--font-mono);font-size:11px;color:var(--grey);letter-spacing:.12em;text-transform:uppercase;margin-bottom:16px;display:flex;align-items:center;gap:12px}
+.cover-label::before{content:'';display:inline-block;width:24px;height:1px;background:var(--red)}
+.cover-series{font-family:var(--font-mono);font-size:10px;color:var(--teal);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.cover-series::before{content:'';display:inline-block;width:16px;height:1px;background:var(--teal)}
+.cover-title{font-family:var(--font-display);font-weight:700;font-size:clamp(32px,5vw,56px);line-height:1.05;color:#fff;letter-spacing:-.03em;margin-bottom:24px}
+.cover-title span{color:var(--red)}
+.cover-subtitle{font-family:var(--font-body);font-size:17px;color:var(--grey);line-height:1.55;max-width:580px}
+.cover-meta{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap}
+.cover-author-block p{font-family:var(--font-mono);font-size:12px;color:var(--slate);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px}
+.cover-author-block h3{font-family:var(--font-display);font-weight:600;font-size:18px;color:#fff}
+.cover-meta-right{text-align:right}
+.cover-meta-right p{font-family:var(--font-mono);font-size:11px;color:var(--slate);line-height:1.8}
+.cover-version-block{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;justify-content:flex-end}
+.cover-version-tag{font-family:var(--font-mono);font-size:9px;padding:3px 8px;border-radius:3px;letter-spacing:.08em;text-transform:uppercase;font-weight:500}
+.cover-version-tag-amber{background:rgba(242,151,39,.15);color:var(--amber);border:1px solid rgba(242,151,39,.3)}
+.cover-version-tag-teal{background:rgba(34,166,153,.15);color:var(--teal);border:1px solid rgba(34,166,153,.3)}
+
+/* SHELL */
+.doc-shell{display:grid;grid-template-columns:var(--sidebar) 1fr;min-height:100vh;transition:grid-template-columns .25s ease}
+
+/* SIDEBAR */
+.sidebar{position:sticky;top:0;height:100vh;overflow-y:auto;background:var(--navy);padding:32px 20px;border-right:1px solid rgba(194,195,196,.12);transition:width .25s ease,padding .25s ease}
+.sidebar::-webkit-scrollbar{width:3px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--slate);border-radius:2px}
+.sidebar-collapse-btn{display:flex;align-items:center;justify-content:flex-end;margin-bottom:20px}
+.sidebar-collapse-btn button{background:none;border:none;cursor:pointer;padding:4px;color:var(--slate);display:flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;transition:color .15s ease}
+.sidebar-collapse-btn button:hover{color:#fff}
+.sidebar-collapse-btn svg{width:14px;height:14px;flex-shrink:0}
+.sidebar-logo{display:flex;align-items:center;gap:8px;margin-bottom:32px;padding-bottom:24px;border-bottom:1px solid rgba(194,195,196,.12)}
+.sidebar-logo span{font-family:var(--font-display);font-weight:700;font-size:14px;color:#fff}
+.toc-label{font-family:var(--font-mono);font-size:9px;color:var(--slate);letter-spacing:.14em;text-transform:uppercase;margin-bottom:16px}
+.toc-list{list-style:none}
+.toc-list li{margin-bottom:2px}
+.toc-list a{display:block;font-family:var(--font-body);font-size:12px;color:var(--grey);text-decoration:none;padding:5px 12px;border-radius:4px;transition:all .15s ease;line-height:1.4}
+.toc-list a:hover{color:#fff;background:rgba(194,195,196,.08)}
+.toc-section{font-family:var(--font-mono);font-size:9px;color:var(--slate);letter-spacing:.1em;text-transform:uppercase;padding:16px 12px 8px;display:block}
+.toc-sub a{padding-left:24px;font-size:11px;color:var(--slate)}
+
+/* SIDEBAR REOPEN */
+.sidebar-reopen{display:none;position:fixed;top:50%;left:0;transform:translateY(-50%);z-index:100;background:var(--navy);border:1px solid rgba(194,195,196,.15);border-left:none;border-radius:0 8px 8px 0;padding:12px 6px;cursor:pointer;flex-direction:column;align-items:center;gap:6px;transition:background .2s ease}
+.sidebar-reopen:hover{background:#1c2a3a}
+.sidebar-reopen svg{width:14px;height:14px;color:#fff}
+.sidebar-reopen span{font-family:var(--font-mono);font-size:8px;color:var(--slate);letter-spacing:.1em;text-transform:uppercase;writing-mode:vertical-rl}
+.doc-shell.sidebar-collapsed .sidebar-reopen{display:flex}
+.doc-shell.sidebar-collapsed{grid-template-columns:0 1fr}
+.doc-shell.sidebar-collapsed .sidebar{width:0;padding:0;overflow:hidden;border-right:none}
+
+/* MOBILE TOGGLE */
+.sidebar-toggle{display:none;position:fixed;top:16px;right:16px;z-index:200;width:40px;height:40px;background:var(--navy);border:1px solid rgba(194,195,196,.2);border-radius:8px;cursor:pointer;align-items:center;justify-content:center;flex-direction:column;gap:5px;padding:10px;transition:background .2s ease}
+.sidebar-toggle:hover{background:#1c2a3a}
+.sidebar-toggle span{display:block;width:18px;height:2px;background:#fff;border-radius:2px;transition:all .25s ease;transform-origin:center}
+.sidebar-toggle.is-open span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+.sidebar-toggle.is-open span:nth-child(2){opacity:0;transform:scaleX(0)}
+.sidebar-toggle.is-open span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:149;opacity:0;transition:opacity .25s ease}
+.sidebar-overlay.is-visible{opacity:1}
+
+/* MAIN */
+.main-content{background:var(--offwhite);padding:64px 96px 128px}
+.content-inner{max-width:var(--max-width);margin:0 auto}
+
+/* SECTIONS */
+.doc-section{margin-bottom:96px}
+.section-header{margin-bottom:48px;padding-bottom:24px;border-bottom:.5px solid var(--lightgrey)}
+.section-number{font-family:var(--font-mono);font-size:11px;color:var(--red);letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.section-number::after{content:'';flex:1;height:1px;background:var(--lightgrey)}
+h2.section-title{font-family:var(--font-display);font-weight:700;font-size:28px;line-height:1.15;letter-spacing:-.025em;color:var(--navy)}
+h3{font-family:var(--font-display);font-weight:600;font-size:20px;line-height:1.2;letter-spacing:-.02em;color:var(--navy);margin-bottom:16px;margin-top:48px}
+h4{font-family:var(--font-display);font-weight:500;font-size:16px;color:var(--navy);margin-bottom:12px;margin-top:24px}
+p{font-family:var(--font-body);font-size:16px;line-height:1.75;color:#1a2332;margin-bottom:24px}
+strong{font-weight:600;color:var(--navy)}
+a{color:var(--sky);text-decoration:none;border-bottom:1px solid rgba(75,170,200,.3);transition:border-color .15s ease}
+a:hover{border-color:var(--sky)}
+
+/* ABSTRACT */
+.abstract-block{background:var(--navy);border-radius:12px;padding:48px;margin-bottom:64px;position:relative;overflow:hidden}
+.abstract-block::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--red)}
+.abstract-label{font-family:var(--font-mono);font-size:10px;color:var(--red);letter-spacing:.15em;text-transform:uppercase;margin-bottom:16px;display:block}
+.abstract-block p{color:var(--grey);font-size:15px;line-height:1.7;margin-bottom:16px}
+.abstract-block p:last-child{margin-bottom:0}
+
+/* GLOSSARY */
+.glossary-grid{display:grid;gap:1px;background:var(--lightgrey);border:1px solid var(--lightgrey);border-radius:8px;overflow:hidden;margin-bottom:32px}
+.glossary-item{display:grid;grid-template-columns:200px 1fr;background:#fff}
+.glossary-term{padding:16px 20px;background:var(--navy);border-right:1px solid rgba(194,195,196,.15)}
+.glossary-term strong{font-family:var(--font-mono);font-size:12px;color:#fff;font-weight:400;display:block;margin-bottom:2px}
+.glossary-term span{font-family:var(--font-mono);font-size:10px;color:var(--slate);letter-spacing:.06em}
+.glossary-def{padding:16px 20px}
+.glossary-def p{font-size:14px;line-height:1.6;color:var(--navy);margin:0}
+
+/* CALLOUTS */
+.callout{border-radius:8px;padding:24px 32px;margin:32px 0;border-left:3px solid}
+.callout-insight{background:rgba(75,170,200,.06);border-color:var(--sky)}
+.callout-warning{background:rgba(242,151,39,.06);border-color:var(--amber)}
+.callout-critical{background:rgba(244,14,42,.04);border-color:var(--red)}
+.callout-success{background:rgba(34,166,153,.06);border-color:var(--teal)}
+.callout-undecided{background:rgba(242,190,34,.06);border-color:var(--yellow)}
+.callout-label{font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:500;margin-bottom:12px;display:block}
+.callout-insight .callout-label{color:var(--sky)}
+.callout-warning .callout-label{color:var(--amber)}
+.callout-critical .callout-label{color:var(--red)}
+.callout-success .callout-label{color:var(--teal)}
+.callout-undecided .callout-label{color:var(--yellow)}
+.callout p{margin:0;font-size:15px;line-height:1.65}
+.callout p+p{margin-top:12px}
+
+/* CODE */
+.code-block{background:var(--navy);border-radius:8px;overflow:hidden;margin:24px 0}
+.code-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid rgba(194,195,196,.1);background:rgba(255,255,255,.03)}
+.code-lang{font-family:var(--font-mono);font-size:10px;color:var(--red);letter-spacing:.1em;text-transform:uppercase}
+.code-desc{font-family:var(--font-mono);font-size:10px;color:var(--slate)}
+pre{padding:20px;overflow-x:auto;font-family:var(--font-mono);font-size:13px;line-height:1.6;color:var(--warmwhite)}
+code{font-family:var(--font-mono);font-size:13px;background:rgba(194,195,196,.12);color:var(--navy);padding:2px 6px;border-radius:3px}
+.code-block pre code{background:none;color:var(--warmwhite);padding:0}
+.code-comment{color:var(--slate)}
+.code-key{color:var(--sky)}
+.code-string{color:var(--teal)}
+.code-value{color:var(--yellow)}
+.code-red{color:var(--red)}
+.code-grey{color:var(--grey)}
+
+/* ARCH DIAGRAM */
+.arch-diagram{background:var(--navy);border-radius:12px;padding:48px;margin:32px 0}
+.arch-title{font-family:var(--font-mono);font-size:10px;color:var(--slate);letter-spacing:.12em;text-transform:uppercase;margin-bottom:24px;text-align:center}
+.arch-layers{display:flex;flex-direction:column;gap:12px}
+.arch-layer{border-radius:8px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:24px}
+.arch-layer-ilpe{background:rgba(244,14,42,.12);border:1px solid rgba(244,14,42,.3)}
+.arch-layer-lkm{background:rgba(75,170,200,.1);border:1px solid rgba(75,170,200,.25)}
+.arch-layer-legalmd{background:rgba(34,166,153,.1);border:1px solid rgba(34,166,153,.25)}
+.arch-layer-rlpn{background:rgba(242,190,34,.08);border:1px solid rgba(242,190,34,.2)}
+.arch-layer-ukls{background:rgba(194,195,196,.08);border:1px solid rgba(194,195,196,.15)}
+.arch-layer-name{font-family:var(--font-display);font-weight:600;font-size:14px;color:#fff;min-width:80px}
+.arch-layer-full{font-family:var(--font-mono);font-size:10px;color:var(--slate);letter-spacing:.06em}
+.arch-layer-desc{font-family:var(--font-body);font-size:13px;color:var(--grey);flex:1;text-align:right}
+.arch-connector{text-align:center;color:var(--slate);font-family:var(--font-mono);font-size:16px;margin:2px 0}
+
+/* TABLE */
+.table-scroll{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;margin:24px 0}
+.table-scroll .comparison-table{margin:0;min-width:560px}
+.comparison-table{width:100%;border-collapse:collapse;font-size:14px;border-radius:8px;overflow:hidden}
+.comparison-table thead{background:var(--navy);color:#fff}
+.comparison-table th{font-family:var(--font-display);font-weight:600;font-size:12px;letter-spacing:.04em;padding:16px 20px;text-align:left;border-bottom:2px solid var(--red)}
+.comparison-table td{font-family:var(--font-body);font-size:13px;padding:12px 20px;border-bottom:1px solid var(--lightgrey);color:var(--navy);vertical-align:top;line-height:1.5}
+.comparison-table tr:last-child td{border-bottom:none}
+.comparison-table tr:nth-child(even) td{background:rgba(239,239,239,.5)}
+.badge{display:inline-block;font-family:var(--font-mono);font-size:10px;padding:2px 7px;border-radius:3px;letter-spacing:.06em;font-weight:500}
+.badge-red{background:rgba(244,14,42,.1);color:var(--red)}
+.badge-amber{background:rgba(242,151,39,.1);color:var(--amber)}
+.badge-teal{background:rgba(34,166,153,.1);color:var(--teal)}
+.badge-grey{background:rgba(76,87,96,.1);color:var(--slate)}
+.badge-yellow{background:rgba(242,190,34,.1);color:#8a6a00}
+
+/* PULL QUOTE */
+.pull-quote{border-left:4px solid var(--red);margin:48px 0;padding:24px 32px;background:rgba(244,14,42,.03);border-radius:0 8px 8px 0}
+.pull-quote p{font-family:var(--font-display);font-weight:500;font-size:20px;line-height:1.4;letter-spacing:-.01em;color:var(--navy);margin:0;font-style:italic}
+
+/* HIERARCHY */
+.hierarchy{background:var(--nearblack);border-radius:8px;padding:20px;margin:24px 0;font-family:var(--font-mono);font-size:13px;line-height:2;color:var(--warmwhite)}
+.h-core{color:var(--red)}
+.h-l1{color:var(--sky);padding-left:24px}
+.h-l1::before{content:'└── ';color:var(--slate)}
+.h-l2{color:var(--teal);padding-left:48px}
+.h-l2::before{content:'└── ';color:var(--slate)}
+.h-l3{color:var(--yellow);padding-left:72px}
+.h-l3::before{content:'└── ';color:var(--slate)}
+.h-l4{color:var(--grey);padding-left:96px}
+.h-l4::before{content:'└── ';color:var(--slate)}
+
+/* COLLAB GRID */
+.collab-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:24px 0}
+.collab-card{background:#fff;border:1px solid var(--lightgrey);border-radius:8px;padding:24px;border-top:3px solid var(--teal)}
+.collab-card h4{font-family:var(--font-display);font-weight:600;font-size:14px;color:var(--navy);margin-bottom:12px;margin-top:0}
+.collab-card p{font-size:13px;line-height:1.6;color:var(--slate);margin:0}
+
+/* DECISION RECORD */
+.decision-record{border:1px solid var(--lightgrey);border-radius:8px;overflow:hidden;margin:32px 0}
+.decision-record-header{background:var(--navy);padding:14px 20px;display:flex;align-items:center;justify-content:space-between}
+.decision-record-header span{font-family:var(--font-mono);font-size:11px;color:var(--grey);letter-spacing:.08em}
+.decision-record-header .dr-status{font-family:var(--font-mono);font-size:10px;padding:2px 8px;border-radius:3px;letter-spacing:.08em}
+.dr-open{background:rgba(242,190,34,.2);color:var(--yellow)}
+.dr-decided{background:rgba(34,166,153,.2);color:var(--teal)}
+.decision-record-body{padding:20px;background:#fff}
+.decision-record-body p{font-size:14px;margin-bottom:12px;line-height:1.6}
+.decision-record-body p:last-child{margin-bottom:0}
+.decision-record-options{display:grid;gap:8px;margin-top:12px}
+.dr-option{padding:12px 16px;border-radius:6px;border:1px solid var(--lightgrey);font-size:13px;line-height:1.5}
+.dr-option-label{font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px;font-weight:500}
+.dr-option-a{border-left:3px solid var(--sky)}
+.dr-option-a .dr-option-label{color:var(--sky)}
+.dr-option-b{border-left:3px solid var(--amber)}
+.dr-option-b .dr-option-label{color:var(--amber)}
+.dr-option-c{border-left:3px solid var(--teal)}
+.dr-option-c .dr-option-label{color:var(--teal)}
+.dr-option-decided{border-left:3px solid var(--teal);background:rgba(34,166,153,.04)}
+.dr-option-decided .dr-option-label{color:var(--teal)}
+
+/* REFERENCES */
+.ref-list{list-style:none}
+.ref-item{display:grid;grid-template-columns:32px 1fr;gap:12px;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--lightgrey)}
+.ref-item:last-child{border-bottom:none}
+.ref-num{font-family:var(--font-mono);font-size:11px;color:var(--red);padding-top:3px;font-weight:500}
+.ref-content{font-family:var(--font-body);font-size:14px;line-height:1.6;color:var(--navy)}
+
+/* FOOTER */
+.doc-footer{background:var(--navy);padding:48px 96px;margin-top:96px}
+.doc-footer-inner{max-width:var(--max-width);margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap}
+.doc-footer p{font-family:var(--font-mono);font-size:11px;color:var(--slate);margin:0}
+
+/* DESKTOP NOTE */
+.desktop-note{display:none;background:rgba(75,170,200,.08);border-top:1px solid rgba(75,170,200,.2);padding:10px 20px;text-align:center;font-family:var(--font-mono);font-size:10px;color:var(--sky);letter-spacing:.06em;position:sticky;top:0;z-index:50}
+
+/* TABLE SCROLL */
+/* RESPONSIVE */
+@media(max-width:1024px){.main-content{padding:56px 56px 96px}}
+@media(max-width:900px){
+  .sidebar-collapse-btn{display:none}
+  .sidebar-reopen{display:none!important}
+  .sidebar-toggle{display:flex;top:16px;left:auto;right:16px}
+  .doc-shell{grid-template-columns:1fr!important}
+  .sidebar{position:fixed;top:0;left:0;height:100vh;width:min(var(--sidebar),85vw);z-index:150;transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1);padding:24px 20px;overflow-y:auto}
+  .sidebar.is-open{transform:translateX(0)}
+  .sidebar-overlay{display:block}
+  .cover{padding:28px 24px 36px}
+  .cover-logo{padding-right:56px}
+  .cover-title{font-size:clamp(26px,7vw,44px)}
+  .cover-body{padding:40px 0}
+  .cover-meta{flex-direction:column;gap:16px}
+  .cover-meta-right{text-align:left}
+  .cover-version-block{justify-content:flex-start}
+  .main-content{padding:32px 28px 72px}
+  .content-inner{max-width:100%}
+  h2.section-title{font-size:24px}
+  h3{font-size:18px;margin-top:36px}
+  p{font-size:15px}
+  .collab-grid{grid-template-columns:1fr}
+  .glossary-item{grid-template-columns:1fr}
+  .glossary-term{border-right:none;border-bottom:1px solid rgba(194,195,196,.15)}
+  .arch-layer{flex-direction:column;align-items:flex-start;gap:6px}
+  .arch-layer-desc{text-align:left;font-size:12px}
+  .arch-diagram{padding:28px 20px}
+  .decision-record-header{flex-direction:column;align-items:flex-start;gap:8px}
+  .doc-footer{padding:32px 24px}
+  .doc-footer-inner{flex-direction:column;gap:12px}
+  .doc-footer-inner div:last-child{text-align:left}
+  .desktop-note{display:block}
+}
+@media(max-width:600px){
+  .cover{padding:20px 18px 28px}
+  .cover-title{font-size:clamp(22px,8vw,34px)}
+  .main-content{padding:24px 16px 56px}
+  .abstract-block{padding:20px 16px}
+  .callout{padding:16px}
+  pre{font-size:10px;padding:12px}
+  .hierarchy{font-size:10px}
+  .h-l1{padding-left:12px}
+  .h-l2{padding-left:24px}
+  .h-l3{padding-left:36px}
+  .h-l4{padding-left:48px}
+  .section-number::after{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- DESKTOP NOTE (mobile only) -->
+<div class="desktop-note">For the best reading experience, open this document on a laptop or desktop.</div>
+
+<!-- HAMBURGER -->
+<button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle navigation">
+  <span></span><span></span><span></span>
+</button>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<!-- COVER -->
+<div class="cover">
+  <div class="cover-logo">
+    <img src="https://i.ibb.co/cKYBBghq/logo-larger.png" alt="Redline" style="height:34px;width:auto;display:block;">
+  </div>
+  <div class="cover-body">
+    <div class="cover-series">ILPE Paper Series &mdash; Paper II</div>
+    <div class="cover-label">Collaborative Working Document &mdash; Version 0.1 &mdash; May 2026</div>
+    <h1 class="cover-title"><span>Building</span> ILPE: Architecture, Distribution, and the Path to Open Standards</h1>
+    <p class="cover-subtitle">A working paper on the technical architecture of LegalMD and its relationship to UKLS, the case for RLPN as a formally specified JSON Schema, the LKM model for distributing legal knowledge as versioned installable packages, the compiler and transpiler pipeline, and how an existing UK ecosystem of legal technology initiatives provides the institutional infrastructure for open standards work to begin.</p>
+  </div>
+  <div class="cover-meta">
+    <div class="cover-author-block">
+      <p>Proposed by</p>
+      <h3>Tega Oviasogie</h3>
+    </div>
+    <div class="cover-meta-right">
+      <p>Founder, Redline &amp; Largence Group Ltd</p>
+      <p>LawtechUK Scaler Programme</p>
+      <p>SuperTech WM LawTech Open Innovation Lab</p>
+      <p>Cambridge, England &mdash; May 2026</p>
+      <div class="cover-version-block">
+        <span class="cover-version-tag cover-version-tag-amber">v0.1 Working Draft</span>
+        <span class="cover-version-tag cover-version-tag-teal">Open for Co-authorship</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SHELL -->
+<div class="doc-shell" id="docShell">
+
+<!-- SIDEBAR -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-collapse-btn">
+    <button id="collapseBtn" aria-label="Collapse sidebar">
+      <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M9 2L4 7l5 5"/></svg>
+      Collapse
+    </button>
+  </div>
+  <div class="sidebar-logo">
+    <img src="https://i.ibb.co/cKYBBghq/logo-larger.png" alt="Redline" style="height:20px;width:auto;display:block;">
+  </div>
+  <div class="toc-label">Contents</div>
+  <ul class="toc-list">
+    <li><a href="#abstract">Abstract</a></li>
+    <li><a href="#glossary">Glossary</a></li>
+    <li><span class="toc-section">I. Foundations</span></li>
+    <li><a href="#introduction">Introduction</a></li>
+    <li><a href="#constraint">The Central Constraint</a></li>
+    <li><span class="toc-section">II. LegalMD Architecture</span></li>
+    <li><a href="#legalmd-design">Designing LegalMD</a></li>
+    <li class="toc-sub"><a href="#ukls-relationship">UKLS and LegalMD</a></li>
+    <li class="toc-sub"><a href="#surface-formats">Surface Format Candidates</a></li>
+    <li class="toc-sub"><a href="#format-decision">The Format Decision</a></li>
+    <li><a href="#precedents">The Precedent System</a></li>
+    <li><span class="toc-section">III. RLPN</span></li>
+    <li><a href="#rlpn">RLPN as JSON Schema</a></li>
+    <li><a href="#multi-jurisdiction">Multi-Jurisdiction Architecture</a></li>
+    <li><span class="toc-section">IV. LKM</span></li>
+    <li><a href="#lkm">Legal Knowledge Manager</a></li>
+    <li class="toc-sub"><a href="#lkm-packages">What a Package Contains</a></li>
+    <li class="toc-sub"><a href="#lkm-versioning">Versioning and the Lockfile</a></li>
+    <li class="toc-sub"><a href="#lkm-firm">Firm Playbooks as Dependencies</a></li>
+    <li><span class="toc-section">V. The Pipeline</span></li>
+    <li><a href="#runtime">The Runtime Architecture</a></li>
+    <li><a href="#compiler">Compiler and Transpiler</a></li>
+    <li><span class="toc-section">VI. Building It</span></li>
+    <li><a href="#ecosystem">The Ecosystem Is Already Here</a></li>
+    <li><a href="#collaboration">Where the Work Happens</a></li>
+    <li><a href="#twelve-months">The First Twelve Months</a></li>
+    <li><span class="toc-section">VII. Closing</span></li>
+    <li><a href="#conclusion">Conclusion</a></li>
+    <li><a href="#contribute">How to Contribute</a></li>
+    <li><a href="#references">References</a></li>
+  </ul>
+</nav>
+
+<!-- REOPEN TAB -->
+<button class="sidebar-reopen" id="sidebarReopen" aria-label="Expand sidebar">
+  <svg viewBox="0 0 14 14" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round"><path d="M5 2l5 5-5 5"/></svg>
+  <span>Contents</span>
+</button>
+
+<!-- MAIN -->
+<main class="main-content">
+<div class="content-inner">
+
+<!-- ABSTRACT -->
+<section class="doc-section" id="abstract">
+  <div class="abstract-block">
+    <span class="abstract-label">Abstract</span>
+    <p>The first paper in this series -- The Case for ILPE -- argued that legalese is an uncompiled language and proposed an architecture called the Integrated Legal Practice Environment: a layered stack comprising LegalMD, RLPN, and the UKLS family of jurisdiction-specific structural schemas. It closed with a call for collaboration. This paper answers the question that call raised: how do you actually build it?</p>
+    <p>This working document addresses four interconnected problems. First, the design of LegalMD as a language -- what it borrows from existing formats, how it relates to UKLS, and why the choice of surface format is an open architectural question that the working group this paper is calling for must resolve rather than one paper can decide alone. Second, the case for RLPN as a formally specified JSON Schema rather than a new serialisation format -- and why that distinction matters for the interoperability goal. Third, the LKM model -- Legal Knowledge Manager -- a package manager for legal knowledge that distributes statutes, case law, regulations, and LegalMD Precedents as versioned, installable, updatable packages with full dependency resolution and lockfile audit trails. Fourth, the compiler and transpiler pipeline that connects the practitioner's ILPE environment to the formal specification layer without requiring practitioners to change how they write.</p>
+    <p>The paper closes with an argument that the institutional infrastructure needed to build this standard collaboratively already exists across the UK -- in open innovation labs, university research consortia, firm innovation programmes, government-backed initiatives, and regional legal technology communities -- and that the missing piece is not appetite but coordination. This document is the beginning of that coordination.</p>
+    <p><em>This is a collaborative working document, not a finished position paper. Version 0.1 is proposed by Tega Oviasogie as a starting point for community discussion. Co-authorship, challenge, and contribution are actively invited. See the How to Contribute section at the end of this document.</em></p>
+  </div>
+</section>
+
+<!-- GLOSSARY -->
+<section class="doc-section" id="glossary">
+  <div class="section-header">
+    <div class="section-number">Glossary</div>
+    <h2 class="section-title">Terms Used in This Paper</h2>
+  </div>
+  <p>Terms carried over from the first paper are included here for readers approaching this paper independently. New terms introduced in this paper are marked accordingly.</p>
+  <div class="glossary-grid">
+    <div class="glossary-item">
+      <div class="glossary-term"><strong>LKM</strong><span>Legal Knowledge Manager -- new</span></div>
+      <div class="glossary-def"><p>A package manager for legal knowledge. Distributes statutes, case law, regulations, industry standards, and LegalMD Precedents as versioned, installable packages with dependency resolution, lockfile audit trails, and a governed public registry. Conceptually analogous to npm, pnpm, or bun in software development.</p></div>
+    </div>
+    <div class="glossary-item">
+      <div class="glossary-term"><strong>LKM Package</strong><span>unit of legal knowledge -- new</span></div>
+      <div class="glossary-def"><p>A versioned bundle in the LKM registry containing everything an ILPE needs to understand a given jurisdiction and practice area: primary legislation, secondary legislation, case law, regulatory guidance, industry standards, and the LegalMD Precedents that formalise how all of that knowledge applies to specific document types.</p></div>
+    </div>
+    <div class="glossary-item">
+      <div class="glossary-term"><strong>LKM Registry</strong><span>central repository -- new</span></div>
+      <div class="glossary-def"><p>The central repository where all LKM packages are published, versioned, and maintained. Governed by a technical steering committee. Analogous to the npm registry. Public packages are openly accessible. Firm-scoped packages are private to the organisation that published them.</p></div>
+    </div>
+    <div class="glossary-item">
+      <div class="glossary-term"><strong>RLPN JSON Schema</strong><span>relational spec -- new</span></div>
+      <div class="glossary-def"><p>RLPN is not a new file format or serialisation language. It is a formally specified JSON Schema: an openly governed specification of what objects exist in a legal engagement, what properties they have, and what their relationships mean legally. JSON is the serialisation format. RLPN is the schema that gives that JSON legal semantic meaning.</p></div>
+    </div>
+    <div class="glossary-item">
+      <div class="glossary-term"><strong>Transpiler</strong><span>format conversion -- new</span></div>
+      <div class="glossary-def"><p>A tool that converts between two representations at a similar level of abstraction. In the ILPE context: converting ILPE-native LegalMD format to annotated DOCX for export, or converting LegalMD representations to LegalRuleML or Akoma Ntoso for interoperability with systems that speak those standards.</p></div>
+    </div>
+    <div class="glossary-item">
+      <div class="glossary-term"><strong>Compiler</strong><span>validation pipeline -- new</span></div>
+      <div class="glossary-def"><p>In the ILPE context: the pipeline that takes a natural language document, the AI-generated LegalMD structured representation, and the installed LegalMD Precedent, and produces deterministic validation output -- flags with severity levels, missing clause alerts, non-standard threshold warnings -- that drives the intelligent behaviour of the ILPE editor. Not a compiler in the traditional software sense but serves the analogous function.</p></div>
+    </div>
+    <div class="glossary-item">
+      <div class="glossary-term"><strong>Architecture Decision Record</strong><span>governance document -- new</span></div>
+      <div class="glossary-def"><p>A formal document recording what architectural options were evaluated, what tradeoffs were identified, and what the community decided. Used in this paper to describe the governance artefact the working group should produce for open architectural questions, particularly the LegalMD surface format question.</p></div>
+    </div>
+    <div class="glossary-item">
+      <div class="glossary-term"><strong>ILPE</strong><span>from Paper I</span></div>
+      <div class="glossary-def"><p>Integrated Legal Practice Environment. A software environment that combines the full stack of legal practice infrastructure into a unified system. Analogous to an IDE in software development. Redline is the first ILPE implementation.</p></div>
+    </div>
+    <div class="glossary-item">
+      <div class="glossary-term"><strong>LegalMD</strong><span>from Paper I</span></div>
+      <div class="glossary-def"><p>An open markup language for the semantic meaning of legal documents. Defines what clauses should be present, what terms are standard, what thresholds apply, and what constitutes a deviation from established practice. Not a single file format -- a data model with multiple surface expressions depending on context.</p></div>
+    </div>
+    <div class="glossary-item">
+      <div class="glossary-term"><strong>LegalMD Precedent</strong><span>from Paper I</span></div>
+      <div class="glossary-def"><p>A jurisdiction, document-type, or sector-specific specification within LegalMD that inherits from LegalMD Core. The hierarchy runs: Core, Jurisdiction, Document Type, Sector, Demographic. Analogous to SQL dialects.</p></div>
+    </div>
+    <div class="glossary-item">
+      <div class="glossary-term"><strong>Human in Command</strong><span>from Paper I</span></div>
+      <div class="glossary-def"><p>The design principle that a human with domain expertise holds final authority over AI-generated outputs. In ILPE: applies at the Precedent specification layer, not at the per-document runtime layer. Legal technologists command the standard. The runtime is fully automated.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- INTRODUCTION -->
+<section class="doc-section" id="introduction">
+  <div class="section-header">
+    <div class="section-number">Section I -- Foundations</div>
+    <h2 class="section-title">Introduction: From the Case to the Build</h2>
+  </div>
+
+  <p>The first paper in this series made the case for why ILPE needs to exist. It established that legalese is an uncompiled language, that every prior attempt to formalise it failed at the same point -- the requirement for legal authors to change how they write -- and that AI in 2026 finally provides the capability to automate the translation layer that those prior attempts could not scale. It closed with a call for collaboration from legal practitioners, legal technologists, engineers, educators, and institutional bodies.</p>
+
+  <p>This paper assumes that case has been made and accepted. It does not rehearse it. Readers who have not read the first paper are encouraged to do so before continuing -- this document builds directly on the architecture and terminology established there.</p>
+
+  <p>What this paper addresses is the question the first paper raised but did not answer: how do you build it? Specifically, what does LegalMD look like as a language, how does it relate to the existing UKLS structural schema, what is the right architectural decision about its surface format, how does RLPN work as a shared relational standard, what does the LKM knowledge distribution system actually do, how does the compiler and transpiler pipeline connect these layers at runtime, and what institutional infrastructure already exists in the UK that can host the collaborative standards work this requires?</p>
+
+  <div class="callout callout-warning">
+    <span class="callout-label">Status of This Document</span>
+    <p>This is version 0.1 of a working document. It presents one person's current best thinking on these architectural questions, informed by months of research, technical exploration, and engagement with prior art. It is not a finished specification. Several questions in this paper are deliberately left open -- marked as Architecture Decision Records -- because they are best resolved by the community this paper is trying to convene rather than by any individual author. Where the paper takes a position, it argues for that position and invites challenge. Where it leaves a question open, it describes the design space and the key considerations so that the working group has a structured starting point rather than a blank page.</p>
+  </div>
+
+  <p>This paper is a collaborative working document. It is proposed by Tega Oviasogie, Founder of Redline and Largence Group Ltd, as a starting point for community discussion. Co-authorship, challenge, contribution, and critique are actively invited. The How to Contribute section at the end of this document explains how to engage.</p>
+</section>
+
+<!-- CENTRAL CONSTRAINT -->
+<section class="doc-section" id="constraint">
+  <div class="section-header">
+    <div class="section-number">Section I -- Foundations</div>
+    <h2 class="section-title">The Central Constraint: The Practitioner Never Touches the Specification</h2>
+  </div>
+
+  <p>Before examining the architecture in detail, one constraint must be stated plainly and unambiguously, because it shapes every decision that follows: the practitioner never writes in LegalMD syntax. Not a lightweight version. Not a simplified subset. Not a form with structured fields. Nothing. The practitioner opens the ILPE, drafts a document in natural language, and works with the results the ILPE surfaces. The formal specification layer is entirely invisible to them.</p>
+
+  <p>This is not a compromise position or a temporary concession to adoption concerns. It is the architecturally correct decision, supported by the entire history of prior attempts to formalise legal language. Every initiative that required legal authors to change how they write -- Accord Project, OpenLaw, LegalRuleML in practice -- failed to achieve the adoption needed to make the standard meaningful. The one initiative that did achieve institutional adoption at scale -- Akoma Ntoso -- succeeded precisely because it separated the authoring of legal content from its machine-readable representation entirely. The author did not change. A separate layer handled the translation.</p>
+
+  <div class="pull-quote">
+    <p>"The test of every architectural decision in this paper is simple: does this require the practitioner to change how they write? If yes, reject it."</p>
+  </div>
+
+  <p>The implication is that the ILPE -- not the practitioner -- is the primary environment. A practitioner who opens Word to draft a contract and then brings it to the ILPE for review is not using an ILPE. They are using a Word plugin. The value proposition of an ILPE collapses to the same proposition as every existing AI-powered legal tool the moment the practitioner's workflow starts outside the environment. The ILPE is where they start and where they finish. The editor must be good enough that they choose it over Word, the same way VS Code had to be good enough that developers chose it over Notepad.</p>
+
+  <p>The constraint also defines the division of labour in the standard's development. Legal practitioners contribute domain knowledge and validate that what has been specified is accurate. Legal technologists -- legal engineers, legal analysts, knowledge lawyers -- translate that domain knowledge into formal LegalMD specifications. Engineers build the parsers, validators, and tooling. The practitioner never writes a line of LegalMD. This mirrors how legal knowledge has always been codified: senior practitioners providing expertise, knowledge professionals doing the systematisation. LegalMD formalises that existing workflow rather than replacing it with something alien.</p>
+</section>
+
+<!-- LEGALMD DESIGN -->
+<section class="doc-section" id="legalmd-design">
+  <div class="section-header">
+    <div class="section-number">Section II -- LegalMD Architecture</div>
+    <h2 class="section-title">Designing LegalMD: What Kind of Language Is It?</h2>
+  </div>
+
+  <p>LegalMD is not one file format. It is a data model -- a formal specification of what objects exist in a legal document, what properties they have, what relationships exist between them, and what constitutes correct, standard, and deviant -- expressed through multiple surface representations depending on context and practitioner type.</p>
+
+  <p>Understanding what kind of language LegalMD is requires first understanding what it needs to do that no existing language does.</p>
+
+  <p>It needs to be readable by legal practitioners who have not been told they are reading a formal specification. A solicitor reviewing a LegalMD-annotated contract should be able to understand what the annotation says without knowing what LegalMD is. This rules out XML, Prolog, LegalRuleML in their raw forms, and most other technical representation languages.</p>
+
+  <p>It needs to be machine-parseable to a formal specification without ambiguity. Every clause type must be deterministically identifiable. Every defined term reference must be resolvable. Every threshold flag must be reproducibly triggered. This rules out pure natural language and rules out Markdown as a complete solution -- Markdown has no concept of typed objects, variables, or conditional relationships.</p>
+
+  <p>It needs to carry structured metadata -- jurisdiction, document type, Precedent reference, party declarations -- in a form that is both human-readable and machine-processable without a compilation step.</p>
+
+  <p>It needs to be contributable by legal technologists who understand both legal domain knowledge and technical implementation -- but not necessarily formal language theory or XML schema design.</p>
+
+  <p>No single existing language satisfies all four requirements. LegalMD is a new language that borrows from several existing ones. The question is which it borrows from and how.</p>
+
+  <h3 id="ukls-relationship">The Relationship Between UKLS and LegalMD</h3>
+
+  <p>The first paper described UKLS and LegalMD as separate layers in the ILPE stack -- UKLS handling structural data and LegalMD handling semantic meaning. The question of whether these should be merged into a single specification is worth addressing directly.</p>
+
+  <p>The case for merging is superficially strong: both are about the individual document, both need to be present for the ILPE to function, and separating them creates two specifications where one might do. HTML5's semantic elements -- nav, article, section, header -- demonstrate that structural and semantic markup can coexist in a single language without incoherence.</p>
+
+  <p>The case for keeping them separate is stronger and ultimately decisive, for three specific reasons.</p>
+
+  <p>They change at different rates. The structural organisation of UK legal documents is stable -- Parliamentary counsel have drafted Acts in roughly the same structural format for decades. The semantic content -- what clauses are standard, what thresholds apply, how case law has interpreted specific provisions -- changes constantly. Merging them into a single specification means a patch update to a clause threshold forces a new version of the entire structural schema, creating unnecessary churn in a layer that should be stable.</p>
+
+  <p>They are maintained by different communities. UKLS already exists. Peter Hunn built it under LawtechUK. There is an existing community and existing tooling. Absorbing UKLS into LegalMD would require that community to abandon their work and migrate to a new standard. Keeping UKLS as the structural layer means the UKLS community can continue their work while LegalMD builds on top of it as a dependency.</p>
+
+  <p>They serve different use cases independently. A document management system that only needs to understand the structural organisation of UK legal documents can use UKLS without LegalMD. A semantic validation system focused on meaning can use LegalMD over its own document model without UKLS. Their independence means each can be adopted without requiring the other.</p>
+
+  <p>The right analogy is HTML and CSS -- not merged into one language, but designed to work together seamlessly. In practice, from the practitioner's perspective and from the runtime perspective, they are effectively one thing. A LegalMD document declares its UKLS schema as a dependency, the same way an HTML file links a CSS stylesheet. In the LKM registry, installing a jurisdiction package installs both the UKLS structural schema and the LegalMD semantic Precedents as part of the same dependency tree. The separation is in the specification and governance layer, invisible to the user.</p>
+
+  <h3 id="surface-formats">The Surface Format Candidates</h3>
+
+  <p>Having established what LegalMD needs to do and its relationship to UKLS, the question is how it should look as a language that legal technologists write and that AI translates into on behalf of practitioners. Four candidates were examined in developing this paper.</p>
+
+  <h4>Candidate A -- The DOCX Extension Model</h4>
+
+  <p>DOCX is Office Open XML: a zip archive containing a folder of XML files. The document content lives in word/document.xml. Styles, settings, relationships, and metadata live in adjacent files. The key insight is that you can add new files to the archive without breaking the existing document. A legal technologist or AI process could generate a legalmd.xml annotation file and place it inside the same .docx archive, referencing the content in document.xml by stable content anchors. Tools that do not understand LegalMD ignore the extra file. Tools that do understand it get full semantic intelligence.</p>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">DOCX Archive Structure -- LegalMD Extension</span><span class="code-desc">Additional annotation file sits alongside existing document files</span></div>
+    <pre><code><span class="code-grey">contract.docx (zip archive)</span>
+<span class="code-grey">├── word/</span>
+<span class="code-grey">│   ├── document.xml          </span><span class="code-comment">← practitioner's content, untouched</span>
+<span class="code-grey">│   ├── styles.xml</span>
+<span class="code-grey">│   └── settings.xml</span>
+<span class="code-key">├── legalmd/</span>
+<span class="code-key">│   ├── legalmd.xml           </span><span class="code-comment">← semantic annotation layer</span>
+<span class="code-key">│   ├── manifest.yaml         </span><span class="code-comment">← jurisdiction, type, Precedent ref</span>
+<span class="code-key">│   └── rlpn.json             </span><span class="code-comment">← relational engagement data</span>
+<span class="code-grey">└── [Content_Types].xml       </span><span class="code-comment">← updated to declare legalmd types</span></code></pre>
+  </div>
+
+  <p>The advantages of this model are significant. The practitioner never changes their workflow -- the document is still a .docx, still opens in Word if needed, still looks and behaves identically from their perspective. The LegalMD layer is additive, invisible, and progressive -- it enriches documents that pass through an ILPE without affecting documents that do not. The DOCX ecosystem is vast: every major programming language has DOCX parsing libraries, so the tooling burden for implementers is low.</p>
+
+  <p>The primary complication is anchor stability. WordprocessingML paragraph and run IDs are not guaranteed to be stable across edits -- Word can regenerate them on save, which breaks annotation references. This is solvable with a more sophisticated anchoring scheme using content fingerprints or structural path references rather than positional IDs, but it adds implementation complexity.</p>
+
+  <h4>Candidate B -- Markdown-Philosophy ILPE-Native Syntax</h4>
+
+  <p>Markdown's founding insight was to formalise what people already do naturally in plain text. Asterisks for emphasis, hyphens for lists, equals signs under headings -- all conventions that existed before Markdown. The language felt like a disciplined version of existing behaviour rather than a new system to learn.</p>
+
+  <p>LegalMD could apply the same philosophy for ILPE-native drafting. A lightweight syntax that reads like a well-structured legal document with minimal annotation overhead, designed for documents created from scratch inside an ILPE environment.</p>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">LegalMD -- ILPE-native syntax (illustrative)</span><span class="code-desc">Readable without knowing LegalMD is what you are reading</span></div>
+    <pre><code><span class="code-comment">---</span>
+<span class="code-key">jurisdiction:</span> <span class="code-string">UK-EW</span>
+<span class="code-key">document-type:</span> <span class="code-string">brand-partnership</span>
+<span class="code-key">precedent:</span> <span class="code-string">LegalMD/UK-EW/brand-partnership/creator</span>
+<span class="code-key">parties:</span>
+  <span class="code-key">- role:</span> <span class="code-string">creator</span>  <span class="code-key">name:</span> <span class="code-string">"[PARTY A]"</span>
+  <span class="code-key">- role:</span> <span class="code-string">brand</span>    <span class="code-key">name:</span> <span class="code-string">"[PARTY B]"</span>
+<span class="code-comment">---</span>
+
+<span class="code-key"># 7. Exclusivity</span>
+
+<span class="code-comment">@clause-type: exclusivity</span>
+<span class="code-comment">@duration: 12 months</span>
+<span class="code-comment">@scope: competing-brands</span>
+
+During the <span class="code-string">[[Engagement Period]]</span>, the Creator shall not
+engage in commercial partnerships with competing brands
+without prior written consent from the Brand.</code></pre>
+  </div>
+
+  <p>The advantages are readability and simplicity for ILPE-native workflows. The complication is that this format requires a fundamentally different editor than a DOCX-based workflow -- practitioners would be drafting in a custom environment rather than in something familiar, which creates adoption friction that the architecture is trying to avoid.</p>
+
+  <h4>Candidate C -- A Hybrid Model</h4>
+
+  <p>The DOCX extension handles existing documents and existing workflows. The ILPE-native syntax handles new documents created in an ILPE from scratch. Both compile to the same underlying LegalMD data model. Both produce the same validation output. The practitioner experience differs by context, but the formal specification they are validated against is identical.</p>
+
+  <p>This is not a compromise between A and B -- it is a recognition that the two use cases are genuinely different and benefit from different surface expressions. An architect does not use the same tool for sketching a concept as for producing technical drawings. The ILPE should offer the right tool for each context.</p>
+
+  <h4>Candidate D -- Pure JSON Schema as LegalMD</h4>
+
+  <p>LegalMD could be expressed entirely as a JSON Schema with no separate surface syntax at all. Documents would be annotated programmatically, Precedents would be JSON Schema definitions, and all human interaction would be through the ILPE UI rather than through the markup itself. This maximises machine-processability but removes the possibility of human-readable markup entirely. Legal technologists contributing Precedents would be writing JSON Schema rather than something that reads like a legal document. This is technically clean but risks replicating the accessibility problem that has limited other formal legal specification efforts.</p>
+
+  <h3 id="format-decision">The Format Decision: An Open Architectural Question</h3>
+
+  <div class="decision-record">
+    <div class="decision-record-header">
+      <span>ADR-001 &mdash; LegalMD Surface Format</span>
+      <span class="dr-status dr-open">Open -- For Working Group</span>
+    </div>
+    <div class="decision-record-body">
+      <p>The working group convened to begin LegalMD specification work should produce a formal Architecture Decision Record on this question within the first three months of operation. The decision should be informed by practical experience building the first Precedent -- which will surface the real constraints in ways that theoretical analysis cannot fully anticipate.</p>
+      <p><strong>Key considerations for the working group:</strong></p>
+      <div class="decision-record-options">
+        <div class="dr-option dr-option-a">
+          <div class="dr-option-label">Consideration A -- Adoption friction</div>
+          Any format that requires practitioners or legal technologists to learn a new syntax creates friction. The format that minimises learning curve while preserving formal expressiveness should be preferred.
+        </div>
+        <div class="dr-option dr-option-b">
+          <div class="dr-option-label">Consideration B -- Anchor stability</div>
+          If the DOCX extension model is chosen, the anchoring scheme for linking annotations to content across edits must be specified and tested before the format is ratified. Unstable anchors would undermine the entire annotation layer.
+        </div>
+        <div class="dr-option dr-option-c">
+          <div class="dr-option-label">Consideration C -- Tooling burden</div>
+          The format should minimise the work required to build a conforming parser. The working group should assess what tooling each candidate requires and whether that tooling can be built within the first twelve months alongside the Core specification and first Precedent.
+        </div>
+      </div>
+      <p style="margin-top:16px">The current working hypothesis, pending working group evaluation, is the hybrid model -- DOCX extension as the primary adoption path for existing documents, ILPE-native lightweight syntax for new documents created inside an ILPE, both compiling to the same underlying LegalMD data model. This hypothesis should be tested against the practical experience of building the first Precedent, not accepted as decided.</p>
+    </div>
+  </div>
+</section>
+
+<!-- PRECEDENT SYSTEM -->
+<section class="doc-section" id="precedents">
+  <div class="section-header">
+    <div class="section-number">Section II -- LegalMD Architecture</div>
+    <h2 class="section-title">The LegalMD Precedent System</h2>
+  </div>
+
+  <p>LegalMD Core defines the base specification -- the grammar and rules that apply to all legal documents regardless of jurisdiction, document type, sector, or demographic. It defines what a party is, what a clause is, what a defined term is, how reference integrity works, what mandatory metadata every legal document must carry. It is the ANSI SQL of the stack: the shared base that every implementation must conform to at a minimum.</p>
+
+  <p>LegalMD Precedents inherit from Core and extend it with domain-specific rules. The inheritance hierarchy runs: Core, Jurisdiction, Document Type, Sector, Demographic.</p>
+
+  <div class="hierarchy">
+    <div class="h-core">LegalMD Core</div>
+    <div class="h-l1">LegalMD/UK-EW (England and Wales)</div>
+    <div class="h-l2">LegalMD/UK-EW/commercial</div>
+    <div class="h-l3">LegalMD/UK-EW/commercial/brand-partnership</div>
+    <div class="h-l4">LegalMD/UK-EW/commercial/brand-partnership/creator</div>
+    <div class="h-l4">LegalMD/UK-EW/commercial/brand-partnership/musician</div>
+    <div class="h-l3">LegalMD/UK-EW/commercial/distribution</div>
+    <div class="h-l3">LegalMD/UK-EW/commercial/employment</div>
+    <div class="h-l2">LegalMD/UK-EW/litigation</div>
+    <div class="h-l3">LegalMD/UK-EW/litigation/pleading</div>
+    <div class="h-l3">LegalMD/UK-EW/litigation/judgement</div>
+    <div class="h-l1">LegalMD/UK-SCO (Scots Law)</div>
+    <div class="h-l1">LegalMD/NGLS (Nigeria Legal Schema)</div>
+    <div class="h-l1">LegalMD/EULS (European Union Legal Schema)</div>
+    <div class="h-l1">LegalMD/USLS (United States Legal Schema)</div>
+  </div>
+
+  <p>Each Precedent specifies, for its domain: which clause types are mandatory and which are optional, what the standard range is for each configurable clause property, what thresholds trigger a flag at each severity level, what defined terms must be declared before use, and what the plain-English explanation of each flag should say to the practitioner. This is the knowledge that practitioners contribute. It is expressed in the LegalMD specification format, reviewed by qualified practitioners before publication, and maintained as a living document that updates when the law changes or market norms evolve.</p>
+
+  <p>The SQL analogy is precise. PostgreSQL, MySQL, and SQLite are all SQL -- they share a common base and diverge in domain-specific ways under a governance model that ensures the divergences are deliberate, documented, and interoperable at the base level. Law firms can build their own LegalMD implementations on top of the public Precedents in exactly the same way. A firm's implementation -- named by convention with the firm's identifier prefix -- inherits from the relevant public Precedent and extends it with firm-specific positions: preferred clause language, fallback positions, red lines that the firm will never accept. The open standard is LegalMD. The commercial layer on top is the firm implementation. Neither belongs to the other.</p>
+
+  <div class="callout callout-insight">
+    <span class="callout-label">Firm Playbooks as Living Specifications</span>
+    <p>Law firms currently maintain institutional knowledge in Word documents, PDF guides, and the heads of senior partners. A firm LegalMD implementation is that knowledge formalised: automatically applied to every document that flows through the ILPE, versioned so that changes can be tracked over time, and contributing to junior lawyer development through its explicit documentation of what good looks like. When a senior partner leaves, their knowledge does not leave with them. It is in the Precedent.</p>
+  </div>
+</section>
+
+<!-- RLPN -->
+<section class="doc-section" id="rlpn">
+  <div class="section-header">
+    <div class="section-number">Section III -- RLPN</div>
+    <h2 class="section-title">RLPN: A Formally Specified JSON Schema</h2>
+  </div>
+
+  <p>The first paper described RLPN -- Relational Legal Practice Notation -- as the layer that addresses how legal documents, parties, obligations, and matters relate to each other within a legal engagement. This paper makes the architectural position explicit: RLPN is not a new file format or serialisation language. It is a formally specified JSON Schema.</p>
+
+  <p>JSON on its own is just a syntax. It has no opinion about what objects exist, what properties they should have, or what relationships are legally meaningful. Two ILPE implementations built independently would produce JSON that neither could read, because there is no shared agreement about what the objects are called, what properties they must have, or how documents relate to each other within a matter. RLPN is that shared agreement.</p>
+
+  <p>Concretely, RLPN specifies: what a Matter is and what properties it must carry, what a Document is and what states it can be in, what a Party is and what roles are valid, what an Obligation is and what a bearer, counterparty, condition, and consequence look like in structured form, and what relationship types can exist between documents -- governing, ancillary, amending, superseding, varying. These definitions are expressed as a JSON Schema, maintained as an open standard under the same governance model as LegalMD, and versioned independently of both LegalMD and the UKLS schemas.</p>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">RLPN JSON Schema -- Matter object (illustrative)</span><span class="code-desc">Formally specified structure that any ILPE must conform to</span></div>
+    <pre><code>{
+  <span class="code-key">"matter"</span>: {
+    <span class="code-key">"id"</span>: <span class="code-string">"RDL-2026-0042"</span>,
+    <span class="code-key">"name"</span>: <span class="code-string">"Engagement with Nike"</span>,
+    <span class="code-key">"status"</span>: <span class="code-string">"active"</span>,
+    <span class="code-key">"jurisdiction-packages"</span>: [<span class="code-string">"@UK-EW/commercial@2.1.4"</span>],
+    <span class="code-key">"parties"</span>: [
+      { <span class="code-key">"role"</span>: <span class="code-string">"initiating"</span>, <span class="code-key">"type"</span>: <span class="code-string">"individual"</span> },
+      { <span class="code-key">"role"</span>: <span class="code-string">"counterparty"</span>, <span class="code-key">"type"</span>: <span class="code-string">"corporate"</span> }
+    ],
+    <span class="code-key">"documents"</span>: [
+      {
+        <span class="code-key">"id"</span>: <span class="code-string">"doc-001"</span>,
+        <span class="code-key">"relationship"</span>: <span class="code-string">"governing"</span>,
+        <span class="code-key">"precedent"</span>: <span class="code-string">"UK-EW/brand-partnership/creator"</span>,
+        <span class="code-key">"version"</span>: <span class="code-value">3</span>,
+        <span class="code-key">"lkm-lockfile-ref"</span>: <span class="code-string">"legalmd.lock@sha256:a4f..."</span>,
+        <span class="code-key">"relates-to"</span>: [<span class="code-string">"doc-002"</span>],
+        <span class="code-key">"conflicts-with"</span>: []
+      },
+      {
+        <span class="code-key">"id"</span>: <span class="code-string">"doc-002"</span>,
+        <span class="code-key">"relationship"</span>: <span class="code-string">"ancillary"</span>,
+        <span class="code-key">"name"</span>: <span class="code-string">"NDA"</span>,
+        <span class="code-key">"status"</span>: <span class="code-string">"final"</span>
+      }
+    ]
+  }
+}</code></pre>
+  </div>
+
+  <p>The case for RLPN as a formally specified open standard rather than ad-hoc JSON becomes most apparent in the multi-jurisdiction context. When a Matter involves UK law, Nigerian law, and EU regulatory requirements simultaneously, the RLPN representation must know not just that three jurisdiction packages are installed but how the obligations, parties, and documents in the engagement relate to each of those jurisdictions -- which governing law clause applies to which document, which party is subject to which regulatory regime, which obligations are governed by which jurisdiction's mandatory rules. That relational complexity cannot be expressed reliably in ad-hoc JSON. It requires a formally specified vocabulary with legal semantic meaning.</p>
+
+  <p>The name RLPN identifies the standard. JSON is the format. This is the same relationship as SQL to a database file -- SQL is the language of the standard, the storage format is an implementation detail that different systems handle differently.</p>
+</section>
+
+<!-- MULTI-JURISDICTION -->
+<section class="doc-section" id="multi-jurisdiction">
+  <div class="section-header">
+    <div class="section-number">Section III -- RLPN</div>
+    <h2 class="section-title">Multi-Jurisdiction Architecture</h2>
+  </div>
+
+  <p>A cross-border commercial agreement between an English company and a Nigerian counterparty with EU data subjects involved is not just three separate jurisdiction packages installed side by side. The jurisdictions interact. Mandatory rules in one jurisdiction may override choice of law clauses. Formal requirements for specific clause types vary -- an IP assignment valid under English law may require notarisation under Nigerian law to be enforceable there. A limitation of liability clause standard in UK commercial practice may be subject to different mandatory controls under NGLS consumer protection rules. Data processing obligations need to satisfy all three regulatory regimes simultaneously.</p>
+
+  <p>The LKM dependency model handles the installation:</p>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">LKM CLI -- Multi-jurisdiction installation</span><span class="code-desc">Three commands. Three jurisdictions. Full dependency resolution.</span></div>
+    <pre><code><span class="code-comment"># Install all three jurisdiction packages and their dependencies</span>
+<span class="code-key">lkm install</span> <span class="code-string">@UK-EW/commercial</span> <span class="code-string">@NGLS/commercial</span> <span class="code-string">@EULS/data-protection</span>
+
+<span class="code-comment"># View what was installed and what each depends on</span>
+<span class="code-key">lkm list</span>
+
+<span class="code-comment"># Check for conflicts between installed packages</span>
+<span class="code-key">lkm audit</span></code></pre>
+  </div>
+
+  <p>But installation is only the beginning. The ILPE needs to understand not just what each jurisdiction's rules say in isolation but how they interact when a document is subject to more than one of them simultaneously. This requires a conflict resolution layer in the LegalMD specification -- a set of rules for what happens when two installed jurisdiction packages have different positions on the same clause type.</p>
+
+  <p>When a conflict is detected, the ILPE surfaces it at the appropriate severity level with a plain-English explanation: "Your limitation of liability clause meets the standard under UK-EW/commercial but may not satisfy the mandatory minimum under NGLS/commercial. If this agreement is to be enforced in Nigeria, consider a jurisdiction-specific carve-out or a separate governing terms addendum." The practitioner makes the decision. The ILPE surfaces the structural information that makes an informed decision possible.</p>
+
+  <div class="callout callout-insight">
+    <span class="callout-label">Cross-Jurisdiction as the Strongest Case for RLPN</span>
+    <p>The multi-jurisdiction scenario is where RLPN's formal specification earns its most important value. An engagement spanning three jurisdictions has relational complexity -- jurisdiction-scoped obligations, conflicting mandatory rules, cross-border party roles -- that cannot be represented in ad-hoc JSON without a shared vocabulary for what these concepts are. RLPN provides that vocabulary. Two ILPEs built independently that both conform to the RLPN specification can exchange cross-border engagement data without a custom integration layer, because they agree on what jurisdiction-scoped obligation means as a formal concept.</p>
+  </div>
+
+  <p>Firm templates and playbooks that span jurisdictions work in the same model. A Magic Circle firm's standard cross-border M&A playbook is a firm-scoped LKM package that declares its jurisdiction dependencies explicitly:</p>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">LKM Package Manifest -- Firm cross-border playbook</span><span class="code-desc">Firm-scoped package with explicit jurisdiction dependencies</span></div>
+    <pre><code><span class="code-key">name:</span> <span class="code-string">"@cliffordchance/cross-border-ma"</span>
+<span class="code-key">version:</span> <span class="code-string">"2.1.0"</span>
+<span class="code-key">visibility:</span> <span class="code-string">"private"</span>
+<span class="code-key">dependencies:</span>
+  <span class="code-string">"@UK-EW/commercial"</span>:  <span class="code-string">"^2.1.0"</span>
+  <span class="code-string">"@NGLS/commercial"</span>:   <span class="code-string">"^1.4.0"</span>
+  <span class="code-string">"@EULS/regulatory"</span>:   <span class="code-string">"^3.0.0"</span>
+  <span class="code-string">"@USLS/commercial"</span>:   <span class="code-string">"^2.0.0"</span>
+<span class="code-key">firm-positions:</span>
+  <span class="code-key">exclusivity-max:</span> <span class="code-string">"3 months"</span>
+  <span class="code-key">governing-law:</span>  <span class="code-string">"English law default unless mandatory rules require otherwise"</span>
+  <span class="code-key">dispute-resolution:</span> <span class="code-string">"LCIA arbitration"</span></code></pre>
+  </div>
+
+  <p>When a new matter opens that involves all four jurisdictions, the ILPE installs the firm playbook and its full dependency tree. When one of the underlying jurisdiction packages updates -- because Parliament passed a new Act or the CJEU issued a significant ruling -- the firm playbook gets a dependency update notification and the knowledge team reviews whether the firm's positions need to change. The playbook maintenance problem is structural: it was impossible before because there was no versioned formal representation of the playbook. It is tractable now.</p>
+</section>
+
+<!-- LKM -->
+<section class="doc-section" id="lkm">
+  <div class="section-header">
+    <div class="section-number">Section IV -- LKM</div>
+    <h2 class="section-title">LKM: Legal Knowledge Manager</h2>
+  </div>
+
+  <p>LKM is the package manager for legal knowledge. The analogy to npm, pnpm, or bun is precise in its technical structure but the vocabulary is deliberately legal-native rather than developer-native. The audience includes legal institutions, practitioners, and knowledge professionals who need to feel ownership over the standard -- and "package manager" carries software connotations that could signal this is a developer tool rather than a legal practice tool. LKM -- Legal Knowledge Manager -- names what the thing actually does: it manages legal knowledge as a distributable, versioned, installable resource.</p>
+
+  <p>The CLI interface is intentionally minimal and immediately legible:</p>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">LKM CLI -- Core commands</span><span class="code-desc">Every command does exactly what it says</span></div>
+    <pre><code><span class="code-comment"># Install jurisdiction knowledge bases</span>
+<span class="code-key">lkm install</span> <span class="code-string">@UK-EW/commercial</span>
+<span class="code-key">lkm install</span> <span class="code-string">@NGLS/commercial</span> <span class="code-string">@EULS/data-protection</span>
+
+<span class="code-comment"># Check for updates to installed knowledge bases</span>
+<span class="code-key">lkm outdated</span>
+
+<span class="code-comment"># Apply all available updates</span>
+<span class="code-key">lkm update</span>
+
+<span class="code-comment"># List what is currently installed and at what version</span>
+<span class="code-key">lkm list</span>
+
+<span class="code-comment"># Search the registry</span>
+<span class="code-key">lkm search</span> <span class="code-string">"UK employment law"</span>
+
+<span class="code-comment"># Publish to the registry (verified publishers only)</span>
+<span class="code-key">lkm publish</span> <span class="code-string">./my-precedent-package</span></code></pre>
+  </div>
+
+  <h3 id="lkm-packages">What a LKM Package Contains</h3>
+
+  <p>A LKM package is not just a schema or a validation specification. It is a living knowledge base containing everything an intelligent legal environment needs to reason about a given jurisdiction and practice area.</p>
+
+  <p><strong>Primary legislation</strong> -- the Acts of Parliament or equivalent that create the legal framework. The Companies Act, the Sale of Goods Act, the Consumer Rights Act, the Late Payment of Commercial Debts Act. The foundational statutory layer.</p>
+
+  <p><strong>Secondary legislation</strong> -- statutory instruments, regulations, and orders made under primary legislation. These change more frequently than primary Acts and often contain the practical rules that directly affect everyday commercial documents.</p>
+
+  <p><strong>Case law</strong> -- the body of judicial decisions that interpret how statutes apply. The package does not just know what the Unfair Contract Terms Act says. It knows how courts have interpreted limitation of liability clauses, what drafting approaches have been upheld, what has been struck down. When a Supreme Court decision changes the interpretation of a standard clause type -- as Triple Point Technology v PTT Public did for liquidated damages clauses -- the relevant Precedent gets a patch release that updates the flag logic and the plain-English explanation. Every ILPE with that Precedent installed gets the update automatically.</p>
+
+  <p><strong>Regulatory guidance</strong> -- the FCA's guidance on financial promotions, the ICO's guidance on UK GDPR Article 28 processor clauses, the SRA's conduct rules. Soft law that does not have statutory force but carries significant practical weight in drafting decisions.</p>
+
+  <p><strong>Industry standards and codes</strong> -- the Musicians' Union's standard terms, sector-specific model contracts, industry body guidance. These define what standard looks like in a given sector and are exactly what LegalMD Precedents benchmark clauses against when flagging non-standard positions.</p>
+
+  <p><strong>LegalMD Precedents</strong> -- the formal specifications that translate all of the above into structured validation rules that the ILPE can apply deterministically to every document that passes through it.</p>
+
+  <h3 id="lkm-versioning">Versioning, Updates, and the Lockfile</h3>
+
+  <p>Semantic versioning maps directly onto how law changes. The three-part version number -- major.minor.patch -- already has exactly the right semantics for legal change.</p>
+
+  <div class="table-scroll">
+    <table class="comparison-table">
+      <thead>
+        <tr><th>Version type</th><th>Legal trigger</th><th>Example</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><span class="badge badge-red">Major</span></td><td>Breaking legislative change -- a new Act that fundamentally alters a practice area</td><td>Consumer Rights Act 2025 amendments invalidating previously standard clause language</td></tr>
+        <tr><td><span class="badge badge-amber">Minor</span></td><td>New clause type added, new regulatory guidance applicable</td><td>ICO issues updated guidance on AI-generated content in contracts, new @ai-generated-content clause type added</td></tr>
+        <tr><td><span class="badge badge-teal">Patch</span></td><td>Case law update refining interpretation of existing clause type</td><td>Supreme Court ruling on liquidated damages -- flag logic updated, plain-English explanation updated</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>The lockfile -- <code>legalmd.lock</code> -- records the exact version of every installed knowledge base at the time a document is drafted or a matter is opened. This is not a developer convenience. It is a legal audit trail that does not currently exist anywhere in legal practice. When a dispute arises three years after a contract was signed about what the standard for a particular clause type was at the time of signing, the lockfile provides the answer definitively and immutably. The state of the law at the moment of signing is recorded and permanently retrievable.</p>
+
+  <div class="callout callout-success">
+    <span class="callout-label">The Audit Trail That Does Not Currently Exist</span>
+    <p>Today, if you need to reconstruct what the market standard for a UK brand partnership exclusivity clause was in February 2024, you would need to search legal databases, consult practitioners who were active at the time, and rely on the fallibility of human memory. The legalmd.lock file created when that contract was drafted would contain the exact version of the @UK-EW/commercial/brand-partnership/creator Precedent installed at that moment, including its full specification of what standard looked like. That is not a marginal improvement over the current state. It is a qualitatively different level of evidentiary reliability.</p>
+  </div>
+
+  <h3 id="lkm-firm">Firm Templates and Playbooks as Installable Dependencies</h3>
+
+  <p>Firm implementations are private LKM packages published to the firm's private registry. They inherit from public jurisdiction packages as declared dependencies and extend them with firm-specific positions. Installing a firm playbook pulls in all the jurisdiction packages it depends on and applies the firm's positions automatically.</p>
+
+  <p>The maintenance model changes fundamentally. Currently, a firm's playbook lives in a Word document that was last updated three years ago, or in the head of a partner who is approaching retirement, or distributed across multiple precedent documents in iManage that are difficult to search and impossible to apply automatically. A firm LegalMD implementation is that playbook in a form that is versioned, automatically applied, diff-able between versions, and preserved as institutional knowledge that does not depend on any individual's continued presence at the firm.</p>
+</section>
+
+<!-- RUNTIME -->
+<section class="doc-section" id="runtime">
+  <div class="section-header">
+    <div class="section-number">Section V -- The Pipeline</div>
+    <h2 class="section-title">The Runtime Architecture: What Actually Happens When a Practitioner Uses the ILPE</h2>
+  </div>
+
+  <p>It is important to be precise about this because a common misreading of the human in command principle is that a human reviews every document before insight is surfaced. That would make the system slower than existing practice, not faster. It would not be automation -- it would be a different kind of bottleneck.</p>
+
+  <p>The human in command principle applies to building and maintaining the standard -- not to the runtime. The legal technologist commands the standard at specification time. Once the Precedent is validated, approved, and published to the LKM registry, the system runs autonomously at scale with no per-document human involvement. The legal technologist's work at the Precedent level multiplies across every document that flows through every ILPE that has that Precedent installed -- indefinitely, without further involvement.</p>
+
+  <div class="arch-diagram">
+    <div class="arch-title">ILPE Runtime Pipeline -- What happens in seconds</div>
+    <div class="arch-layers">
+      <div class="arch-layer arch-layer-ilpe">
+        <div><div class="arch-layer-name">1. Draft</div><div class="arch-layer-full">Practitioner writes in natural language</div></div>
+        <div class="arch-layer-desc">No syntax. No markup. Just legal writing.</div>
+      </div>
+      <div class="arch-connector">&#8595;</div>
+      <div class="arch-layer arch-layer-lkm">
+        <div><div class="arch-layer-name">2. Identify</div><div class="arch-layer-full">ILPE selects applicable Precedent</div></div>
+        <div class="arch-layer-desc">Document type and jurisdiction detected. Relevant LKM package selected automatically.</div>
+      </div>
+      <div class="arch-connector">&#8595;</div>
+      <div class="arch-layer arch-layer-legalmd">
+        <div><div class="arch-layer-name">3. Translate</div><div class="arch-layer-full">AI generates structured representation</div></div>
+        <div class="arch-layer-desc">LLM translates natural language to LegalMD annotation. Background process. Seconds.</div>
+      </div>
+      <div class="arch-connector">&#8595;</div>
+      <div class="arch-layer arch-layer-rlpn">
+        <div><div class="arch-layer-name">4. Validate</div><div class="arch-layer-full">Deterministic validation against Precedent</div></div>
+        <div class="arch-layer-desc">No inference. No AI. Specification check runs against installed Precedent. Deterministic output.</div>
+      </div>
+      <div class="arch-connector">&#8595;</div>
+      <div class="arch-layer arch-layer-ukls">
+        <div><div class="arch-layer-name">5. Surface</div><div class="arch-layer-full">The Read surfaces as plain English</div></div>
+        <div class="arch-layer-desc">Practitioner sees niche-calibrated insight. No markup visible. No specification visible.</div>
+      </div>
+    </div>
+  </div>
+
+  <p>The total elapsed time from document submission to insight surfacing is seconds. There is no human in the loop at any point in this workflow. The intelligence was pre-loaded into the installed Precedent. The AI handles the translation. The validator handles the checking. The ILPE handles the presentation. The practitioner reads the result and makes decisions about their document.</p>
+
+  <p>This is not a partial automation or a human-assisted process. It is full automation at the runtime layer, made reliable by the human in command process at the specification layer -- the legal technologists and practitioners who validated the Precedent before it was published. Their rigour at specification time is what makes full automation at runtime trustworthy.</p>
+</section>
+
+<!-- COMPILER -->
+<section class="doc-section" id="compiler">
+  <div class="section-header">
+    <div class="section-number">Section V -- The Pipeline</div>
+    <h2 class="section-title">Compiler and Transpiler: Two Distinct Tools</h2>
+  </div>
+
+  <p>The distinction between a compiler and a transpiler is worth making precisely, because the ILPE architecture needs both and they serve fundamentally different purposes.</p>
+
+  <p>A transpiler converts between two representations at a similar level of abstraction. The output is still human-readable source, just in a different language. TypeScript transpiles to JavaScript. Sass transpiles to CSS. The content is equivalent; the representation changes.</p>
+
+  <p>A compiler takes source code and produces output at a fundamentally different level of abstraction -- typically from human-readable to machine-executable, with a validation step that catches errors before any output is produced.</p>
+
+  <p>The ILPE needs both.</p>
+
+  <h3>The Transpiler: Cross-Format Portability</h3>
+
+  <p>The transpiler handles movement between surface formats. An ILPE-native document transpiles to annotated DOCX for export to a counterparty who uses Word. A LegalMD representation transpiles to LegalRuleML for interoperability with systems that speak that standard. A LegalMD annotation transpiles to an Akoma Ntoso representation for legislative documents that need to enter parliamentary archives. In all cases the content is equivalent; only the representation changes.</p>
+
+  <p>The transpiler is the interoperability layer that connects LegalMD to the existing ecosystem of legal document standards rather than competing with them. Akoma Ntoso and LegalRuleML represent significant bodies of work and institutional investment. LegalMD does not make them obsolete -- it provides a pathway for documents that originate in either system to be expressed in the other, and for documents that originate in LegalMD to be consumed by systems built on either standard.</p>
+
+  <h3>The Compiler: The Validation Pipeline</h3>
+
+  <p>The compiler is what makes the ILPE intelligent. It takes three inputs -- the natural language document, the AI-generated LegalMD structured representation, and the installed LegalMD Precedent -- and produces deterministic validation output: flags with severity levels, missing clause alerts, non-standard threshold warnings, defined term reference errors, inter-clause conflicts.</p>
+
+  <p>The compiler does not use AI for this process. It applies the rules of the specification deterministically, the same way a Python interpreter applies the rules of the Python language specification. The AI handled the translation from natural language to structured representation. The compiler handles the validation of that representation against the specification. These are two different processes using two different technologies for a reason: AI is appropriate for the semantic understanding task, deterministic rules are appropriate for the structural validation task.</p>
+
+  <div class="callout callout-insight">
+    <span class="callout-label">Why the Separation Matters</span>
+    <p>An LLM asked whether an exclusivity clause is non-standard will produce a probabilistic answer that varies across invocations, cannot be audited, and has a documented hallucination rate on legal questions of at least 58% (Dahl et al., 2024). The same question answered by the compiler -- checking the clause duration against the threshold specified in the installed Precedent -- produces a deterministic answer that is the same every time, references the specific Precedent version that produced it, and can be independently verified. The LLM is powerful at understanding context and nuance. The compiler is reliable at enforcing rules. Both are needed. Neither substitutes for the other.</p>
+  </div>
+
+  <h3>The Formal Reasoning Compiler: A Future Direction</h3>
+
+  <p>The Bloomberg paper (Kordjamshidi et al., 2025) demonstrated that LLMs used purely as translators into formal Prolog representations -- with symbolic solvers handling the actual reasoning -- outperform LLM-only approaches on legal reasoning tasks by margins of 30-72% depending on the task complexity and model. This points toward a longer-term direction for the ILPE stack: a formal reasoning compiler that takes a LegalMD-annotated document and compiles it into an executable representation that a symbolic reasoner can operate over.</p>
+
+  <p>This is not a v1 requirement. The ILPE provides substantial value from the deterministic structural validation compiler alone -- catching undefined terms, missing mandatory clauses, and non-standard clause positions is already far beyond what any current legal AI tool provides reliably. The formal reasoning compiler is the direction of travel: the point where the ILPE stops catching structural problems and starts reasoning about logical consistency, obligation discharge, and outcome prediction. That capability requires a mature LegalMD specification, a stable Precedent library, and extensive validation before it can be relied upon. It is the horizon, not the starting line.</p>
+</section>
+
+<!-- ECOSYSTEM -->
+<section class="doc-section" id="ecosystem">
+  <div class="section-header">
+    <div class="section-number">Section VI -- Building It</div>
+    <h2 class="section-title">The Ecosystem Is Already Here</h2>
+  </div>
+
+  <p>The single most important practical observation in this paper is this: the institutional infrastructure needed to build an open standard for legalese collaboratively already exists across the UK. The question is not whether there is appetite. The evidence that there is appetite is overwhelming. The question is how to coordinate it.</p>
+
+  <p>The UK legal technology ecosystem spans every nation and every type of institution. At the firm level: A&O Shearman's Fuse, now on its tenth cohort since 2017, has supported over 90 legaltech businesses with cohort companies raising more than USD 1 billion. Mishcon de Reya's MDR LAB was the first dedicated legaltech incubator in the UK. Slaughter and May's Collaborate has run four cohorts engaging clients including GlaxoSmithKline, Santander, and Vodafone. Dentons launched Office Hours in April 2025. Clifford Chance runs an internal innovation lab with an Applied Solutions subsidiary. These firms are not experimenting with legal technology -- they are committed to it at an institutional level.</p>
+
+  <p>At the government and institutional level: LawtechUK, Ministry of Justice backed and extended until October 2026, delivered by CodeBase and Legal Geek, has run the Scaler programme, the Sandbox, and extensive ecosystem development activities. The LawtechUK Sandbox gave regulated access to eleven cross-sector regulators to early-stage legaltech companies -- one of its first cohort members was Clause, which aimed to provide an open-source library of machine-readable legal documents. That is the closest prior art to what LKM is proposing, from 2020.</p>
+
+  <p>At the academic level: the Manchester Law and Technology Initiative brings together law, business, and computer science under one roof with industry partners already engaged. Legal Innovation Lab Wales at Swansea University is a £5.6 million dedicated institution. Ulster University's Centre for Legal Technology launched in September 2025 with a £200,000 AI in judicial decision-making project backed by the AI Security Institute. The University of Nottingham launched its Law and Tech Research Centre in October 2025. Bristol, Edinburgh, UCL, King's College London, Southampton, and Sussex all have active law and technology research programmes.</p>
+
+  <p>At the community level: Bristol+Bath LegalTech brings together law firms, the West of England Combined Authority, regional universities, and legaltech entrepreneurs around a shared vision. Legal Tech in the South West runs an annual community event at Bristol Beacon -- 210 attendees in 2025, explicitly focused on legal operations and the practitioners who manage how legal work gets done. LawscotTech, established by the Law Society of Scotland in 2018, has a 2024-2028 strategy for embedding legal technology into Scottish legal practice and university syllabuses.</p>
+
+  <p>None of these initiatives has given the ecosystem shared infrastructure to build on. That is the gap. Not appetite. Not people. Not institutions. Shared infrastructure -- a formal specification for legalese, a versioned knowledge distribution system, an open relational standard for legal engagement data -- that all of these initiatives can build on, contribute to, and benefit from simultaneously.</p>
+
+  <div class="pull-quote">
+    <p>"The ecosystem is not waiting to be built. It is waiting for something to organise around."</p>
+  </div>
+</section>
+
+<!-- WHERE THE WORK HAPPENS -->
+<section class="doc-section" id="collaboration">
+  <div class="section-header">
+    <div class="section-number">Section VI -- Building It</div>
+    <h2 class="section-title">Where the Work Happens</h2>
+  </div>
+
+  <p>The distinction between where the standard gets built and where it gets used is critical and worth stating plainly. The firm incubators -- Fuse, Collaborate, MDR LAB, Dentons Office Hours -- are the right venues for testing and implementing firm-specific LegalMD implementations and for validating that the ILPE delivers value in real legal workflows. They are not the right venues for building the open standard itself, because firm-specific programmes have firm-specific interests and IP expectations that are incompatible with the open collaboration principle the standard requires.</p>
+
+  <p>The right venues for open standards work are neutral convening spaces with academic credibility, cross-sector participation, and regulatory adjacency. Three types of institution provide this combination in the UK.</p>
+
+  <p><strong>Open Innovation Labs.</strong> SuperTech WM's LawTech Open Innovation Lab is the primary candidate. It is neutral -- not owned by any single firm or commercial interest. It is already convening legal practice and legal technology across institutional boundaries. It has government-adjacent positioning through SuperTech WM. And it operates explicitly as an open innovation environment, which means the intellectual property produced in it is shared rather than owned by any single participant. This is the institutional model that the first phase of LegalMD standards work needs.</p>
+
+  <p><strong>Academic Research Consortia.</strong> The Manchester Law and Technology Initiative provides the academic rigour layer -- law, business, and computer science under one institutional roof, with existing industry partner relationships and the capacity to provide PhD researchers and postdoctoral fellows to do sustained technical work on the specification. Legal Innovation Lab Wales provides the Welsh jurisdiction dimension and brings a £5.6 million institutional commitment to legal innovation research. Ulster University's Centre for Legal Technology provides the Northern Ireland dimension and has already demonstrated the ability to attract government research funding for AI in legal contexts.</p>
+
+  <p><strong>Government and Regulatory Engagement.</strong> LawtechUK provides the government-adjacent relationship that gives the standard regulatory legitimacy. The LawtechUK Sandbox model -- access to cross-sector regulators during a structured development period -- is directly applicable to the regulatory clarity questions that ILPE raises. Where does AI-generated structural analysis of legal documents sit relative to regulated legal advice under the Legal Services Act 2007? That question needs regulatory engagement before the standard can be relied upon in practice, and LawtechUK is the established channel for that engagement with the SRA, the BSB, and the Legal Services Board.</p>
+
+  <div class="collab-grid">
+    <div class="collab-card">
+      <h4>Legal Practitioners</h4>
+      <p>Domain expertise to validate LegalMD Precedents for specific practice areas. Music law, creator contracts, employment, commercial -- any area where the gap between sophisticated practice and individual experience is widest. You write the rules by validating what legal technologists have drafted. You do not write in any specification format.</p>
+    </div>
+    <div class="collab-card">
+      <h4>Legal Technologists</h4>
+      <p>The translation layer between practitioner knowledge and formal specification. Legal engineers, legal analysts, knowledge lawyers. You write the LegalMD Precedents based on what practitioners tell you. You are the most critical role in the collaboration because you sit at the intersection of legal domain knowledge and technical implementation.</p>
+    </div>
+    <div class="collab-card">
+      <h4>Engineers and Tooling Builders</h4>
+      <p>The reference implementation needs to be built: the LegalMD parser and validator, the LKM registry infrastructure, the RLPN JSON Schema, the transpiler between surface formats, and the compiler pipeline. Open source, well-documented, sufficient for any ILPE implementation to build against.</p>
+    </div>
+    <div class="collab-card">
+      <h4>Legal Academics and Researchers</h4>
+      <p>The rigour and challenge layer. The Bloomberg paper, the LegalRuleML community, the Akoma Ntoso researchers -- people who have been thinking about these problems for decades and whose scrutiny will either validate the architecture or expose its flaws. Engaging them as critical collaborators rather than waiting for them to respond is strategically smarter.</p>
+    </div>
+    <div class="collab-card">
+      <h4>Industry Bodies</h4>
+      <p>PRS for Music, the Musicians' Union, the Society of Authors, Equity, the FA. You hold institutional knowledge about the contracts your members sign -- what is standard, what is abusive, what protections are absent. That knowledge, contributed to LegalMD Precedents, becomes protective infrastructure for the people you exist to represent.</p>
+    </div>
+    <div class="collab-card">
+      <h4>Regulatory and Government Bodies</h4>
+      <p>LawtechUK, the SRA, the BSB, the Legal Services Board, the MoJ. The standard needs regulatory clarity on what AI-generated structural analysis of legal documents is and is not. That clarity requires your engagement before the standard can be relied upon in regulated contexts. Early engagement shapes the answer rather than waiting to respond to it.</p>
+    </div>
+  </div>
+
+  <p>The open collaboration principle that governs the standard is the same as in the first paper: any party that contributes must keep their contribution open. The application layer -- the products built on the ILPE stack, including Redline -- may be commercially owned. The infrastructure layer -- LegalMD, LKM, RLPN -- is a public good. Nobody owns it. Everyone benefits from it. For the right commercial partnership, a controlled closure window of three to five years is acceptable with a contractual obligation to open at the end of that window. Permanent closure is not available.</p>
+</section>
+
+<!-- TWELVE MONTHS -->
+<section class="doc-section" id="twelve-months">
+  <div class="section-header">
+    <div class="section-number">Section VI -- Building It</div>
+    <h2 class="section-title">The First Twelve Months: A Proposed Work Plan</h2>
+  </div>
+
+  <p>This section proposes a concrete twelve-month deliverable set for the initial working group. It is a starting point for discussion, not a fixed plan. The working group should revise, challenge, and refine this on first convening.</p>
+
+  <h3>Months 1-3: Foundation</h3>
+
+  <p><strong>Deliverable 1: LegalMD Core specification v0.1.</strong> The base grammar and rules that apply to all legal documents regardless of jurisdiction or type. Party declarations, clause structure, defined term requirements, reference integrity rules, mandatory metadata. This is the foundational work that everything else depends on. It requires legal technologists, a small number of practitioner reviewers from different practice areas, and at least one legal informatics academic providing challenge and rigour.</p>
+
+  <p><strong>Deliverable 2: Architecture Decision Record on LegalMD surface format.</strong> The working group evaluates the candidates -- DOCX extension, ILPE-native lightweight syntax, hybrid model -- against the criteria established in this paper and any additional criteria that emerge from practical experimentation. A formal decision record is published. The community has three months to challenge it before it is treated as ratified.</p>
+
+  <p><strong>Deliverable 3: RLPN JSON Schema v0.1.</strong> A draft specification of the relational data model. Not final. Sufficient to represent a simple Matter with two documents, two parties, and a governing relationship. Sufficient to demonstrate interoperability between two ILPE implementations built independently.</p>
+
+  <h3>Months 4-8: First Precedent</h3>
+
+  <p><strong>Deliverable 4: First LegalMD Precedent -- UK-EW/commercial/brand-partnership/creator.</strong> The proof of concept that the Core specification is workable. This Precedent is built in the open, with process documented in detail, by a working group of two or three legal technologists, two or three practitioners with music or creator law expertise from organisations like the Musicians' Union or PRS for Music, one engineer, and one academic reviewer. Building the first Precedent will surface every gap in the Core specification and every ambiguity in the contribution process. It is the test case that validates or breaks the architecture.</p>
+
+  <p><strong>Deliverable 5: LKM Registry alpha.</strong> A working implementation of the knowledge distribution infrastructure. Sufficient to install the first Precedent into a test ILPE and demonstrate the end-to-end flow: lkm install, draft a document, receive structured insight. Not production-ready. Sufficient to make the architecture real and tangible to every stakeholder who has read the papers but cannot yet visualise what it feels like to use.</p>
+
+  <h3>Months 9-12: Validation and Expansion</h3>
+
+  <p><strong>Deliverable 6: End-to-end demonstration.</strong> A live demonstration of the full pipeline -- practitioner drafts a brand partnership agreement in an ILPE, the LKM-installed Precedent drives the validation, The Read surfaces plain-English insight calibrated to the creator demographic. Demonstrated to stakeholders from legal practice, the institutional community, and the technology ecosystem. This is the moment that converts interested observers into active contributors.</p>
+
+  <p><strong>Deliverable 7: Governance structure proposal.</strong> A proposed governance model for the mature standard -- technical steering committee composition, Precedent review process, publisher verification requirements, amendment procedures, conflict resolution. Circulated for community comment before ratification. Based on the Linux Foundation model for the Accord Project as the closest prior art.</p>
+
+  <p><strong>Deliverable 8: Second Precedent working group formation.</strong> Based on what was learned from building the first Precedent, a second working group is formed to build the next Precedent -- chosen based on where the access to justice need and the practitioner contribution capacity align best. The first Precedent is the template. The second is the proof that the process scales.</p>
+</section>
+
+<!-- CONCLUSION -->
+<section class="doc-section" id="conclusion">
+  <div class="section-header">
+    <div class="section-number">Section VII -- Closing</div>
+    <h2 class="section-title">Conclusion</h2>
+  </div>
+
+  <p>The first paper argued that legalese needs a formal specification. This paper has attempted to describe what that specification looks like, how it gets distributed, and how the runtime pipeline connects it to the practitioner's experience without requiring practitioners to change how they work.</p>
+
+  <p>Several things are decided. RLPN is a formally specified JSON Schema, not a new serialisation language. LKM is the package manager for legal knowledge, distributing statutes, case law, regulations, and Precedents as versioned installable packages with dependency resolution and audit lockfiles. The practitioner never touches the specification. The human in command principle applies to building the standard, not to the runtime. The runtime is fully automated.</p>
+
+  <p>Several things are not yet decided. The LegalMD surface format question -- DOCX extension, ILPE-native lightweight syntax, or hybrid -- is left as an open Architecture Decision Record for the working group to resolve through practical experience building the first Precedent. The formal reasoning compiler is a direction of travel, not a current requirement. The exact governance model for the mature standard is a proposal to be refined through community engagement.</p>
+
+  <p>The most important thing this paper establishes is not an architectural detail. It is the observation that the collaboration infrastructure already exists. The appetite is documented, the institutions are named, the initiatives are active. What has been missing is something concrete enough for the ecosystem to organise around. This paper, combined with the first paper, is that something. The next step is convening the working group.</p>
+
+  <div class="pull-quote">
+    <p>"The standard does not need to be built from scratch. It needs to be built in the right room, with the right people, on a foundation that already exists."</p>
+  </div>
+
+  <p>Subsequent papers in this series will address the LegalMD specification in technical depth for a legal technologist and engineer audience, the access to justice implications in practical terms for a legal practitioner audience, and the cross-domain generalisation of the ILPE methodology for professional services beyond law. This paper, like the first, is the beginning of a conversation rather than the end of one.</p>
+</section>
+
+<!-- HOW TO CONTRIBUTE -->
+<section class="doc-section" id="contribute">
+  <div class="section-header">
+    <div class="section-number">Section VII -- Closing</div>
+    <h2 class="section-title">How to Contribute to This Document</h2>
+  </div>
+
+  <p>This is version 0.1 of a working document. It is explicitly incomplete, explicitly open to challenge, and explicitly seeking co-authors. The following types of contribution are actively invited.</p>
+
+  <div class="collab-grid">
+    <div class="collab-card" style="border-top-color:var(--red);">
+      <h4>Architectural Challenge</h4>
+      <p>If you believe an architectural decision in this paper is wrong, or that a candidate option was not fairly evaluated, or that a conclusion was reached without sufficient evidence -- say so, in writing, with reasoning. The paper will be updated to reflect serious challenges.</p>
+    </div>
+    <div class="collab-card" style="border-top-color:var(--amber);">
+      <h4>Domain Expertise</h4>
+      <p>If you are a practising solicitor, barrister, legal engineer, or knowledge lawyer who can speak to whether the LegalMD Precedent model accurately reflects how legal knowledge is actually structured and applied in practice -- your expertise is needed. The architecture is only as good as its grounding in real legal work.</p>
+    </div>
+    <div class="collab-card" style="border-top-color:var(--teal);">
+      <h4>Technical Implementation</h4>
+      <p>If you are an engineer who wants to build the reference implementation, contribute to the LKM registry infrastructure, or prototype the compiler pipeline -- the GitHub repository linked below is where that work happens. PRs, issues, and technical discussion are all welcome.</p>
+    </div>
+    <div class="collab-card" style="border-top-color:var(--sky);">
+      <h4>Co-Authorship</h4>
+      <p>If you are a legal informatics researcher, legal technologist, or practitioner who wants to be named as a co-author on a revised version of this paper -- reach out directly. Co-authorship requires substantive contribution to the content, not just endorsement.</p>
+    </div>
+  </div>
+
+  <p>Contact: reach out via the Redline website, via the ILPE white paper GitHub repository at <a href="https://github.com/T-E-G-A/ILPE-whitepaper" target="_blank">github.com/T-E-G-A/ILPE-whitepaper</a>, or directly via LinkedIn to Tega Oviasogie. All serious engagement will receive a response.</p>
+
+  <p>This document is published under Creative Commons Attribution 4.0 International (CC BY 4.0). You are free to share, adapt, and build on it for any purpose provided you credit the original author and indicate if changes were made.</p>
+</section>
+
+<!-- REFERENCES -->
+<section class="doc-section" id="references">
+  <div class="section-header">
+    <div class="section-number">References</div>
+    <h2 class="section-title">Reference List</h2>
+  </div>
+  <ul class="ref-list">
+    <li class="ref-item"><span class="ref-num">01</span><div class="ref-content">Accord Project (2025). <em>Q3 2025 Release Notes: MCP Server Integration.</em> Linux Foundation. Available at: accordproject.org [Accessed May 2026].</div></li>
+    <li class="ref-item"><span class="ref-num">02</span><div class="ref-content">A&O Shearman (2026). <em>Applications Now Open for Fuse Cohort 10.</em> Available at: aoshearman.com [Accessed May 2026].</div></li>
+    <li class="ref-item"><span class="ref-num">03</span><div class="ref-content">Bristol+Bath LegalTech (2026). <em>Our Mission.</em> Available at: bblegaltech.com [Accessed May 2026].</div></li>
+    <li class="ref-item"><span class="ref-num">04</span><div class="ref-content">Dahl, M., Magesh, V., Suzgun, M. and Ho, D.E. (2024). 'Large Legal Fictions: Profiling Legal Hallucinations in Large Language Models.' <em>Journal of Legal Analysis,</em> 16(1), pp. 64--93. doi:10.1093/jla/laae003. Also available as preprint: arxiv.org/abs/2401.01301.</div></li>
+    <li class="ref-item"><span class="ref-num">05</span><div class="ref-content">Dentons UKIME (2025). 'Dentons launches Office Hours, a Legaltech R&D Program.' <em>Artificial Lawyer,</em> 8 April 2025. Available at: artificiallawyer.com [Accessed May 2026].</div></li>
+    <li class="ref-item"><span class="ref-num">06</span><div class="ref-content">Gruber, J. (2004). <em>Markdown.</em> Daring Fireball. Available at: daringfireball.net/projects/markdown [Accessed May 2026].</div></li>
+    <li class="ref-item"><span class="ref-num">07</span><div class="ref-content">Holzenberger, N., Blair-Stanek, A. and Van Durme, B. (2020). 'A dataset for statutory reasoning in tax law entailment and question answering.' <em>Proceedings of the 2020 Natural Legal Language Processing Workshop.</em> CEUR-WS.org.</div></li>
+    <li class="ref-item"><span class="ref-num">08</span><div class="ref-content">Hunn, P. (2021). <em>A Structured Data Format for Digital Contracts in the UK.</em> LawtechUK / Tech Nation. Available at: technation.io [Accessed May 2026].</div></li>
+    <li class="ref-item"><span class="ref-num">09</span><div class="ref-content">Jurayj, W., Holzenberger, N. and Van Durme, B. (2025). 'Language models and logic programs for trustworthy tax reasoning.' <em>AAAI Conference on Artificial Intelligence.</em></div></li>
+    <li class="ref-item"><span class="ref-num">10</span><div class="ref-content">Kordjamshidi, P., Aslan, S., Seshadri, M., Barrett, L. and Santus, E. (2025). 'Reasoners or Translators? Contamination-aware Evaluation and Neuro-Symbolic Robustness on Tax Law.' Bloomberg / Michigan State University. Preprint.</div></li>
+    <li class="ref-item"><span class="ref-num">11</span><div class="ref-content">LawtechUK (2026). <em>LawtechUK Programme.</em> Ministry of Justice / CodeBase / Legal Geek. Available at: lawtechuk.io [Accessed May 2026].</div></li>
+    <li class="ref-item"><span class="ref-num">12</span><div class="ref-content">Law Society of Scotland (2024). <em>LawscotTech Strategy 2024--2028.</em> Available at: lawscot.org.uk [Accessed May 2026].</div></li>
+    <li class="ref-item"><span class="ref-num">13</span><div class="ref-content">Legal Tech in the South West (2026). <em>Legal Operations Special Edition -- 2 October 2026.</em> Available at: ltinsw.com [Accessed May 2026].</div></li>
+    <li class="ref-item"><span class="ref-num">14</span><div class="ref-content">Manchester Law and Technology Initiative (2025). <em>About MLaTI.</em> University of Manchester. Available at: law-tech.manchester.ac.uk [Accessed May 2026].</div></li>
+    <li class="ref-item"><span class="ref-num">15</span><div class="ref-content">Mishcon de Reya (2022). <em>MDR LAB alumni: Version Story.</em> Available at: lab.mdr.london [Accessed May 2026].</div></li>
+    <li class="ref-item"><span class="ref-num">16</span><div class="ref-content">OASIS (2018). <em>Akoma Ntoso Version 1.0, Part 1: XML Vocabulary.</em> OASIS Standard. Available at: docs.oasis-open.org [Accessed May 2026].</div></li>
+    <li class="ref-item"><span class="ref-num">17</span><div class="ref-content">OASIS (2021). <em>LegalRuleML Core Specification Version 1.0.</em> OASIS Standard. Editors: Palmirani, M., Governatori, G., Athan, T., Boley, H., Paschke, A. and Wyner, A. Available at: docs.oasis-open.org [Accessed May 2026].</div></li>
+    <li class="ref-item"><span class="ref-num">18</span><div class="ref-content">Oviasogie, T. (2026). <em>The Case for ILPE: Toward a Machine-Readable Foundation for Legal Practice.</em> White Paper v1.0. Largence Group Ltd / Redline. Available at: t-e-g-a.github.io/ILPE-whitepaper [Accessed May 2026].</div></li>
+    <li class="ref-item"><span class="ref-num">19</span><div class="ref-content">Slaughter and May (2024). <em>Slaughter and May announces fourth Collaborate Cohort.</em> Available at: slaughterandmay.com [Accessed May 2026].</div></li>
+    <li class="ref-item"><span class="ref-num">20</span><div class="ref-content">Swansea University (2026). <em>Legal Innovation Lab Wales.</em> Hillary Rodham Clinton School of Law. Available at: swansea.ac.uk [Accessed May 2026].</div></li>
+    <li class="ref-item"><span class="ref-num">21</span><div class="ref-content">Ulster University (2025). 'Ulster University celebrates launch of new Centre for Legal Technology.' <em>Newsletter,</em> September 2025. Available at: ulster.ac.uk [Accessed May 2026].</div></li>
+    <li class="ref-item"><span class="ref-num">22</span><div class="ref-content">X2RL (2021). McLaughlin, J. and Stover, D. 'X2RL: A Semantic Machine-Readable Format for Regulatory Documents.' <em>MIT Computational Law Report,</em> 2021. Available at: law.mit.edu [Accessed May 2026].</div></li>
+  </ul>
+</section>
+
+</div><!-- /content-inner -->
+</main>
+</div><!-- /doc-shell -->
+
+<footer class="doc-footer">
+  <div class="doc-footer-inner">
+    <div>
+      <p>Building ILPE -- Working Paper v0.1</p>
+      <p>Proposed by Tega Oviasogie -- May 2026</p>
+    </div>
+    <div style="text-align:right">
+      <p>&copy; 2026 Tega Oviasogie</p>
+      <p>CC BY 4.0 -- Open for co-authorship and contribution</p>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var shell=document.getElementById('docShell');
+  var sidebar=document.getElementById('sidebar');
+  var overlay=document.getElementById('sidebarOverlay');
+  var hamburger=document.getElementById('sidebarToggle');
+  var collapseBtn=document.getElementById('collapseBtn');
+  var reopenBtn=document.getElementById('sidebarReopen');
+
+  function openMobile(){sidebar.classList.add('is-open');overlay.classList.add('is-visible');hamburger.classList.add('is-open')}
+  function closeMobile(){sidebar.classList.remove('is-open');overlay.classList.remove('is-visible');hamburger.classList.remove('is-open')}
+  hamburger.addEventListener('click',function(){sidebar.classList.contains('is-open')?closeMobile():openMobile()});
+  overlay.addEventListener('click',closeMobile);
+  sidebar.querySelectorAll('a').forEach(function(l){l.addEventListener('click',function(){if(window.innerWidth<=900)closeMobile()})});
+
+  function collapseSidebar(){shell.classList.add('sidebar-collapsed');try{localStorage.setItem('ilpe2-sidebar','collapsed')}catch(e){}}
+  function expandSidebar(){shell.classList.remove('sidebar-collapsed');try{localStorage.setItem('ilpe2-sidebar','expanded')}catch(e){}}
+  collapseBtn.addEventListener('click',collapseSidebar);
+  reopenBtn.addEventListener('click',expandSidebar);
+  try{if(localStorage.getItem('ilpe2-sidebar')==='collapsed'&&window.innerWidth>900)shell.classList.add('sidebar-collapsed')}catch(e){}
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')closeMobile()});
+})();
+</script>
+</body>
+</html>
